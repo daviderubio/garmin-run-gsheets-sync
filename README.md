@@ -89,19 +89,29 @@ git branch -M main
     - Click New repository secret and add these three secrets:
 
 * Secret 1: GARMIN_EMAIL
-
-    Name: GARMIN_EMAIL
-    Value: Your Garmin Connect email
+```
+Name: GARMIN_EMAIL
+Value: Your Garmin Connect email
+```
 
 * Secret 2: GARMIN_PASSWORD
-
-    Name: GARMIN_PASSWORD
-    Value: Your Garmin Connect password
+```
+Name: GARMIN_PASSWORD
+Value: Your Garmin Connect password
+```
 
 * Secret 3: GOOGLE_CREDENTIALS
+```
+Name: GOOGLE_CREDENTIALS
+Value: The entire contents of the JSON file you downloaded (copy & paste everything)
+```
 
-    Name: GOOGLE_CREDENTIALS
-    Value: The entire contents of the JSON file you downloaded (copy & paste everything)
+* Secret 4: SHEETS_ID
+```
+Name: SHEETS_ID
+Value: The unique ID number in your Garmin Data Google sheets, you can find it in the URL
+    https://docs.google.com/spreadsheets/d/[SHEETS_ID]/edit?gid=379328079
+```
 
 * Test It!
 
