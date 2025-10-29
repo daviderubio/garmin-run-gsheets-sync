@@ -1,7 +1,7 @@
 
 # 🏃🏽‍♂️ Garmin Run Data to Google Sheets Sync README
 
-Automatically syncs Garmin Connect Running data to Google Sheets daily.
+Automatically syncs Garmin Connect Running data to Google Sheets, runs daily.
 
 # What this project does?
 
@@ -32,10 +32,10 @@ activities = garmin.get_activities(0, 20)  # Increase this number
 * Go to Google Sheets
 * Create a new sheet called "Garmin Data"
 * Add headers in row 1 (copy/paste below)
-    '''
+    ```
     Date	Activity Name	Distance (km)	Duration (min)	Avg Pace (min/km)	Avg HR	Max HR	Calories	Avg Cadence	Elevation Gain (m)	Activity Type
-    '''
-* If testing locally, share and give editor access to your Google Cloud Service Account.
+    ```
+* If you're testing locally, then share and give editor access to your Google Cloud Service Account.
 
 # Set Up Google Cloud Credentials
 
