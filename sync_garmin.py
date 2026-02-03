@@ -9,7 +9,7 @@ from google.oauth2.service_account import Credentials
 import gspread
 
 def main():
-    print("Starting extended Garmin sync...")
+    print("Starting ALL-Activity Garmin sync...")
     
     # Credentials laden
     garmin_email = os.environ.get('GARMIN_EMAIL')
@@ -18,8 +18,7 @@ def main():
     sheet_id = os.environ.get('SHEET_ID')
     session_base64 = os.environ.get('GARMIN_SESSION_BASE64')
     
-    # Garmin Login (Session-Logik)
-    print("Connecting to Garmin...")
+    # --- GARMIN LOGIN ---
     garmin = None
     if session_base64:
         try:
@@ -37,68 +36,83 @@ def main():
         garmin = Garmin(garmin_email, garmin_password)
         garmin.login()
 
-    # Aktivitäten holen
-    activities = garmin.get_activities(0, 20)
+    # Aktivitäten holen (letzte 30, um sicherzugehen)
+    activities = garmin.get_activities(0, 30)
     
-    # Google Sheets Verbindung
+    # --- GOOGLE SHEETS ---
     creds_dict = json.loads(google_creds_json)
     creds = Credentials.from_service_account_info(creds_dict, scopes=['https://www.googleapis.com/auth/spreadsheets', 'https://www.googleapis.com/auth/drive'])
     client = gspread.authorize(creds)
     sheet = client.open_by_key(sheet_id).sheet1
+    all_rows = sheet.get_all_values()
+    
+    # Erweiterte Kopfzeilen basierend auf deinem CSV-Wunsch
+    headers = [
+        "Date", "Activity Type", "Title", "Distance (km)", "Calories", "Duration (min)", 
+        "Avg HR", "Max HR", "Aerobic TE", "Avg Cadence", "Max Cadence", 
+        "Avg Speed (km/h)", "Max Speed (km/h)", "Total Ascent", "Total Descent", 
+        "Avg Stride Length", "Avg GCT Balance", "Avg GAP", "Avg Power", "Max Power", 
+        "Training Stress Score", "Steps", "Total Reps", "Total Poses", 
+        "Body Battery Drain", "Min Temp", "Max Temp", "Avg Resp", "Min Resp", "Max Resp",
+        "Moving Time", "Elapsed Time", "Min Elevation", "Max Elevation"
+    ]
 
-    # Vorhandene Daten prüfen
-    existing_data = sheet.get_all_values()
-    existing_dates = {row[0] for row in existing_data if row}
+    if not all_rows or all_rows[0][0] != "Date":
+        sheet.insert_row(headers, 1)
+        all_rows = sheet.get_all_values()
+    
+    existing_dates = {row[0] for row in all_rows if row}
 
     new_entries = 0
-    for act in activities:
-        # Datum extrahieren (als ID zur Vermeidung von Duplikaten)
-        date_str = act.get('startTimeLocal', '')[:10]
-        full_start_time = act.get('startTimeLocal', '') # Für präzisere Unterscheidung bei 2 Trainings am Tag
-        
-        # Check ob Eintrag schon existiert (Datum + Startzeit wäre idealer, hier bleibe ich beim Datum)
-        if full_start_time in existing_dates or date_str in existing_dates:
+    # Alle Aktivitäten verarbeiten (Kein Filter mehr auf 'running'!)
+    for act in reversed(activities):
+        full_start_time = act.get('startTimeLocal', '')
+        if full_start_time in existing_dates:
             continue
 
-        # Daten-Extraktion (Mapping der Garmin API Keys auf deine Liste)
+        # Mapping der Garmin API Werte (viele Felder sind optional je nach Sportart)
         row = [
-            full_start_time,                                         # Date
-            act.get('activityType', {}).get('typeKey', ''),          # Type
-            act.get('activityName', ''),                             # Title
-            round(act.get('distance', 0) / 1000, 2),                # Distance (km)
-            act.get('calories', 0),                                  # Calories
-            round(act.get('duration', 0) / 60, 2),                   # Duration (min)
-            act.get('averageHR', 0),                                 # Avg HR
-            act.get('maxHR', 0),                                     # Max HR
-            act.get('aerobicTrainingEffect', 0),                     # Aerobic TE
-            act.get('averageRunningCadenceInStepsPerMinute', 0),     # Avg Run Cadence
-            act.get('maxRunningCadenceInStepsPerMinute', 0),         # Max Run Cadence
-            round(act.get('averageSpeed', 0) * 3.6, 2),              # Avg Speed (km/h)
-            round(act.get('maxSpeed', 0) * 3.6, 2),                  # Max Speed (km/h)
-            round(act.get('elevationGain', 0), 1),                   # Total Ascent
-            round(act.get('elevationLoss', 0), 1),                   # Total Descent
-            round(act.get('avgStrideLength', 0) / 100, 2),           # Avg Stride Length (m)
-            act.get('vO2MaxValue', 0),                               # Platzhalter für Vertical Ratio/VO2
-            act.get('avgVerticalOscillation', 0),                    # Avg Vertical Oscillation
-            act.get('avgGroundContactTime', 0),                      # Avg GCT
-            act.get('avgGradeAdjustedSpeed', 0),                     # Avg GAP
-            act.get('avgPower', 0),                                  # Avg Power
-            act.get('maxPower', 0),                                  # Max Power
-            act.get('steps', 0),                                     # Steps
-            act.get('bodyBatteryDrainValue', 0),                     # Body Battery Drain
-            act.get('minTemperature', 0),                            # Min Temp
-            act.get('maxTemperature', 0),                            # Max Temp
-            round(act.get('movingDuration', 0) / 60, 2),             # Moving Time
-            round(act.get('elapsedDuration', 0) / 60, 2),            # Elapsed Time
-            round(act.get('minElevation', 0), 1),                    # Min Elevation
-            round(act.get('maxElevation', 0), 1)                     # Max Elevation
+            full_start_time,
+            act.get('activityType', {}).get('typeKey', ''),
+            act.get('activityName', ''),
+            round(act.get('distance', 0) / 1000, 2),
+            act.get('calories', 0),
+            round(act.get('duration', 0) / 60, 2),
+            act.get('averageHR', 0),
+            act.get('maxHR', 0),
+            act.get('aerobicTrainingEffect', 0),
+            act.get('averageRunningCadenceInStepsPerMinute', act.get('averageBikeCadence', 0)), # Kombiniert Run/Bike
+            act.get('maxRunningCadenceInStepsPerMinute', act.get('maxBikeCadence', 0)),
+            round(act.get('averageSpeed', 0) * 3.6, 2),
+            round(act.get('maxSpeed', 0) * 3.6, 2),
+            round(act.get('elevationGain', 0), 1),
+            round(act.get('elevationLoss', 0), 1),
+            act.get('avgStrideLength', 0),
+            act.get('avgGroundContactBalance', 0),
+            act.get('avgGradeAdjustedSpeed', 0),
+            act.get('avgPower', 0),
+            act.get('maxPower', 0),
+            act.get('trainingStressScore', 0),
+            act.get('steps', 0),
+            act.get('totalReps', 0),
+            act.get('totalPoses', 0),
+            act.get('bodyBatteryDrainValue', 0),
+            act.get('minTemperature', 0),
+            act.get('maxTemperature', 0),
+            act.get('averageRespirationRate', 0),
+            act.get('minRespirationRate', 0),
+            act.get('maxRespirationRate', 0),
+            round(act.get('movingDuration', 0) / 60, 2),
+            round(act.get('elapsedDuration', 0) / 60, 2),
+            round(act.get('minElevation', 0), 1),
+            round(act.get('maxElevation', 0), 1)
         ]
         
         sheet.append_row(row)
-        print(f"✅ Added: {date_str} - {act.get('activityName')}")
+        print(f"✅ Added {act.get('activityType', {}).get('typeKey')}: {full_start_time}")
         new_entries += 1
 
-    print(f"Done! Added {new_entries} entries.")
+    print(f"Done! {new_entries} activities added.")
 
 if __name__ == "__main__":
     main()
