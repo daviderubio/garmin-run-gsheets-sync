@@ -138,3 +138,5 @@ GARMIN_PASSWORD=yourpasswords
 SHEET_ID=get from Gsheets URL
 GOOGLE_CREDENTIALS={"type": "service_account","project_id": ...}
 ```
+# Future improvements
+* Add more activities
